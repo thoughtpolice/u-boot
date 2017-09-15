@@ -374,6 +374,44 @@ static int do_bootm_qnxelf(int flag, int argc, char * const argv[],
 }
 #endif
 
+#if defined(CONFIG_BOOTM_SEL4) && defined(CONFIG_CMD_ELF)
+static int do_bootm_sel4elf(int flag, int argc, char * const argv[],
+			    bootm_headers_t *images)
+{
+	char *local_args[2];
+	char str[16];
+	int dcache;
+
+	if (flag != BOOTM_STATE_OS_GO)
+		return 0;
+
+#if defined(CONFIG_FIT)
+	if (!images->legacy_hdr_valid) {
+		fit_unsupported_reset("SEL4");
+		return 1;
+	}
+#endif
+
+	sprintf(str, "%lx", images->ep); /* write entry-point into string */
+	local_args[0] = argv[0];
+	local_args[1] = str;	/* and provide it via the arguments */
+
+	/*
+	 * seL4 images require the data cache is disabled.
+	 */
+	dcache = dcache_status();
+	if (dcache)
+		dcache_disable();
+
+	do_bootelf(NULL, 0, 2, local_args);
+
+	if (dcache)
+		dcache_enable();
+
+	return 1;
+}
+#endif
+
 #ifdef CONFIG_INTEGRITY
 static int do_bootm_integrity(int flag, int argc, char * const argv[],
 			   bootm_headers_t *images)
@@ -465,6 +503,9 @@ static boot_os_fn *boot_os[] = {
 #endif
 #ifdef CONFIG_BOOTM_OPENRTOS
 	[IH_OS_OPENRTOS] = do_bootm_openrtos,
+#endif
+#if defined(CONFIG_BOOTM_SEL4) && defined(CONFIG_CMD_ELF)
+	[IH_OS_SEL4] = do_bootm_sel4elf,
 #endif
 };
 
